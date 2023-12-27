@@ -269,7 +269,8 @@ public class MyJFrame extends javax.swing.JFrame {
             }
         });
 
-        buttonSnapShot.addActionListener(new ActionListener() {
+        buttonSnapShot.addActionListener(new ActionListener()
+        {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String imagePath="chart.png";
@@ -363,7 +364,7 @@ public class MyJFrame extends javax.swing.JFrame {
         return Base64.getEncoder().encodeToString(imageBytes);
     }
 
-    private void showHistogram()
+/*    private void showHistogram()
     {
         double[] values = { 95, 49, 14, 59, 50, 66, 47, 40, 1, 67,
                 12, 58, 28, 63, 14, 9, 31, 17, 94, 71,
@@ -551,7 +552,7 @@ public class MyJFrame extends javax.swing.JFrame {
 
 
         return dataset;
-    }
+    }*/
 
     /**
      * This method is called from within the constructor to initialize the form.
