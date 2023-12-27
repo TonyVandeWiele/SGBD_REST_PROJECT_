@@ -57,8 +57,8 @@ public class MyJFrame extends javax.swing.JFrame {
 
     String urlGet = "http://192.168.89.131:8080/ords/devadri/test/a?begintime=818929&endtime=818960";
     String urlPost = "http://192.168.89.131:8080/ords/devadri/test/a";
-    int indexDataMaxActuel = 20;
-    int indexDataMinActuel = 0;
+    int indexGraphMax = 20;
+    int indexGraphMin = 0;
 
     DefaultCategoryDataset ds;
 
@@ -160,6 +160,9 @@ public class MyJFrame extends javax.swing.JFrame {
                         break;
                     default: axesSelected = accx;
                 }
+                
+                indexGraphMin = 0;
+                indexGraphMax = 20;
             }
         });
 
@@ -193,7 +196,7 @@ public class MyJFrame extends javax.swing.JFrame {
                 parsingJSON(dataJson);
 
 
-                for (int i = indexDataMinActuel; i < nombreLigneJson && i < indexDataMaxActuel; i++)
+                for (int i = indexGraphMin; i < nombreLigneJson && i < indexGraphMax; i++)
                 {
                     ds.addValue(axesSelected[i], rowKey, Integer.toString(timestamp[i]));
                 }
@@ -203,16 +206,16 @@ public class MyJFrame extends javax.swing.JFrame {
                     @Override
                     protected Void doInBackground() throws Exception
                     {
-                        for (int i = indexDataMaxActuel; indexDataMaxActuel < nombreLigneJson; i++)
+                        for (int i = indexGraphMax; indexGraphMax < nombreLigneJson; i++)
                         {
                             if (this.isCancelled()) {
                                 System.out.println("CANCELLED");
                                 break; // Si l'annulation est demandée, quittez la boucle
                             }
-                            ds.removeValue(rowKey, Integer.toString(timestamp[indexDataMinActuel]));
-                            ds.addValue(axesSelected[indexDataMaxActuel], rowKey, Integer.toString(timestamp[indexDataMaxActuel]));
-                            indexDataMinActuel++;
-                            indexDataMaxActuel++;
+                            ds.removeValue(rowKey, Integer.toString(timestamp[indexGraphMin]));
+                            ds.addValue(axesSelected[indexGraphMax], rowKey, Integer.toString(timestamp[indexGraphMax]));
+                            indexGraphMin++;
+                            indexGraphMax++;
                             try {
                                 Thread.sleep(1000);
                             } catch (InterruptedException ex) {
@@ -231,7 +234,8 @@ public class MyJFrame extends javax.swing.JFrame {
             }
         });
 
-        buttonStop.addActionListener(new ActionListener() {
+        buttonStop.addActionListener(new ActionListener() 
+        {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (worker != null && !worker.isDone()) {
@@ -241,7 +245,8 @@ public class MyJFrame extends javax.swing.JFrame {
             }
         });
 
-        buttonRetour.addActionListener(new ActionListener() {
+        buttonRetour.addActionListener(new ActionListener() 
+        {
             @Override
             public void actionPerformed(ActionEvent e) {
                 if (worker != null && !worker.isDone()) {
@@ -249,19 +254,19 @@ public class MyJFrame extends javax.swing.JFrame {
                     JOptionPane.showMessageDialog(getContentPane(), "Arret de l'opération!");
                 }
 
-                if(indexDataMinActuel < 20)
+                if(indexGraphMin < 20)
                 {
-                    indexDataMinActuel = 0;
-                    indexDataMaxActuel = 20;
+                    indexGraphMin = 0;
+                    indexGraphMax = 20;
                 }
                 else
                 {
-                    indexDataMinActuel = indexDataMinActuel - 20;
-                    indexDataMaxActuel = indexDataMaxActuel - 20;
+                    indexGraphMin = indexGraphMin - 20;
+                    indexGraphMax = indexGraphMax - 20;
                 }
                 ds.clear();
 
-                for (int i = indexDataMinActuel; i >= 0 && i < indexDataMaxActuel; i++)
+                for (int i = indexGraphMin; i >= 0 && i < indexGraphMax; i++)
                 {
                     ds.setValue(axesSelected[i], rowKey, Integer.toString(timestamp[i]));
                     chartPanel.repaint();
