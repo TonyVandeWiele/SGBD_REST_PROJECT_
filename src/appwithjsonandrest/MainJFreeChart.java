@@ -8,7 +8,7 @@ package appwithjsonandrest;
  *
  * @author S.Hiard
  */
-public class TestJFreeChart {
+public class MainJFreeChart {
 
     /**
      * @param args the command line arguments

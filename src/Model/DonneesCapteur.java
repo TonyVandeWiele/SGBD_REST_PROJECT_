@@ -1,4 +1,4 @@
-package appwithjsonandrest;
+package Model;
 
 public class DonneesCapteur {
     private String timestamp;

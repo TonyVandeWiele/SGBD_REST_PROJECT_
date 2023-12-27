@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JFrame.java to edit this template
- */
 package appwithjsonandrest;
 
 import javax.imageio.ImageIO;
@@ -18,8 +14,7 @@ import org.jfree.chart.axis.CategoryAxis;
 import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
-import org.jfree.data.category.DefaultCategoryDataset;
-import org.jfree.data.general.DefaultPieDataset;
+
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -27,32 +22,17 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Calendar;
-import org.jfree.data.time.Day;
-import org.jfree.data.time.Month;
-import org.jfree.data.time.TimeSeries;
-import org.jfree.data.time.TimeSeriesCollection;
-import org.jfree.data.xy.XYDataset;
-import org.jfree.chart.plot.XYPlot;
-import java.awt.Color;
+
 import java.util.Base64;
 import java.util.Iterator;
-import javax.swing.SwingUtilities;
-import org.jfree.data.statistics.HistogramDataset;
-import org.jfree.data.xy.XYSeries;
-import org.jfree.data.xy.XYSeriesCollection;
+
+import org.jfree.data.category.DefaultCategoryDataset;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import static appwithjsonandrest.AppWithJSONAndRest.GetDataJson;
-import static appwithjsonandrest.AppWithJSONAndRest.POSTImageJson;
-import static java.lang.Thread.sleep;
+import static appwithjsonandrest.GetPost.GetDataJson;
+import static appwithjsonandrest.GetPost.POSTImageJson;
 
-
-/**
- *
- * @author S.Hiard
- */
 public class MyJFrame extends javax.swing.JFrame {
 
     String urlGet = "http://192.168.89.131:8080/ords/devadri/test/a?begintime=818929&endtime=818960";
@@ -279,6 +259,7 @@ public class MyJFrame extends javax.swing.JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String imagePath="chart.png";
+
                 // Créez une image à partir du graphique
                 BufferedImage image = jfc.createBufferedImage(800, 600);
                 try {

@@ -8,7 +8,6 @@ package appwithjsonandrest;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
-import java.util.Iterator;
 
 import org.json.*;
 
@@ -16,7 +15,7 @@ import org.json.*;
  *
  * @author samue
  */
-public class AppWithJSONAndRest {
+public class GetPost {
 
     static StringBuilder GetDataJson(String urlIn)
     {
