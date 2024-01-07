@@ -35,7 +35,7 @@ import static appwithjsonandrest.GetPost.POSTImageJson;
 
 public class MyJFrame extends javax.swing.JFrame {
 
-    String urlGet = "http://192.168.89.131:8080/ords/devadri/test/a?begintime=818929&endtime=818960";
+    String urlGet = "http://192.168.89.131:8080/ords/devadri/test/a";
     String urlPost = "http://192.168.89.131:8080/ords/devadri/test/a";
     int indexGraphMax = 20;
     int indexGraphMin = 0;
@@ -79,12 +79,11 @@ public class MyJFrame extends javax.swing.JFrame {
 
     public MyJFrame() {
         initComponents();
-
         showEvolution();
     }
-
     private void showEvolution()
     {
+        //region GUI
         JFreeChart jfc = ChartFactory.createLineChart
                 ("Donnees Vehicule", "Temps", "ACCY",
                         ds, PlotOrientation.VERTICAL, false, true, false);
@@ -121,6 +120,42 @@ public class MyJFrame extends javax.swing.JFrame {
         // Initialisation de la JComboBox
         AxesComboBox = new JComboBox<>(Axes);
 
+        // Définissez la taille préférée de la fenêtre
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        int preferredWidth = (int) (screenSize.width * 0.8); // Utilisez 80% de la largeur de l'écran
+        int preferredHeight = (int) (screenSize.height * 0.8); // Utilisez 80% de la hauteur de l'écran
+        Dimension preferredSize = new Dimension(preferredWidth, preferredHeight);
+        setPreferredSize(preferredSize);
+
+        // Modifiez le layout du panneau principal pour utiliser BorderLayout.CENTER pour les boutons
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.add(chartPanel, BorderLayout.CENTER);
+
+        // Créez un panneau pour les boutons
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.add(buttonLecture);
+        buttonPanel.add(buttonStop);
+        buttonPanel.add(buttonRetour);
+        buttonPanel.add(buttonSnapShot);
+        buttonPanel.add(AxesComboBox);
+        buttonPanel.add(ChoixComboBox);
+        buttonPanel.add(textFieldTimestamp);
+
+        // Ajoutez le panneau des boutons au panneau principal dans la région SUD
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // Ajoutez le panneau principal à la fenêtre
+        setContentPane(mainPanel);
+        pack();
+
+        // Centrez la fenêtre sur l'écran
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setVisible(true);
+        //endregion
+
+        //region ACTION LISTENER
+
         AxesComboBox.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -146,27 +181,6 @@ public class MyJFrame extends javax.swing.JFrame {
             }
         });
 
-        // Créez un panneau pour les boutons
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new FlowLayout());
-        buttonPanel.add(buttonLecture);
-        buttonPanel.add(buttonStop);
-        buttonPanel.add(buttonRetour);
-        buttonPanel.add(buttonSnapShot);
-        buttonPanel.add(AxesComboBox);
-        buttonPanel.add(ChoixComboBox);
-        buttonPanel.add(textFieldTimestamp);
-
-
-        // Créez un panneau principal pour contenir le graphique et les boutons
-        JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.add(chartPanel, BorderLayout.CENTER);
-        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
-
-        setContentPane(mainPanel);
-        //getContentPane().setSize(new Dimension(1800,1800));
-
-        // Ajoutez des ActionListener aux boutons
         buttonLecture.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -179,6 +193,7 @@ public class MyJFrame extends javax.swing.JFrame {
                 for (int i = indexGraphMin; i < nombreLigneJson && i < indexGraphMax; i++)
                 {
                     ds.addValue(axesSelected[i], rowKey, Integer.toString(timestamp[i]));
+                    System.out.println(axesSelected[i]);
                 }
 
                 worker = new SwingWorker<Void, Void>()
@@ -285,6 +300,7 @@ public class MyJFrame extends javax.swing.JFrame {
                 }
             }
         });
+        //endregion
     }
 
     public void parsingJSON(StringBuilder dataJson)
@@ -326,11 +342,21 @@ public class MyJFrame extends javax.swing.JFrame {
                 if(key.equals("ACCZ"))
                     accz[i] = (double) currentObject.get(key);
                 if(key.equals("GYROY"))
-                    gyroy[i] = (double) currentObject.get(key);
+                    try{
+                        gyroy[i] = (double) currentObject.get(key);
+                    } catch (ClassCastException e) {
+                        System.out.println("Erreur de casting pour gyroy : " + e.getMessage());
+                        gyroy[i] = (double)(int) currentObject.get(key);
+                    }
                 if(key.equals("ACCX"))
                     accx[i] = (double) currentObject.get(key);
                 if(key.equals("GYROZ"))
-                    gyroz[i] = (double) currentObject.get(key);
+                    try {
+                        gyroz[i] = (double) currentObject.get(key);
+                    } catch (ClassCastException e) {
+                        System.out.println("Erreur de casting pour gyroz : " + e.getMessage());
+                        gyroz[i] = (double)(int) currentObject.get(key);
+                    }
                 if(key.equals("GYROX"))
                     try {
                         gyrox[i] = (double) currentObject.get(key);
@@ -342,6 +368,10 @@ public class MyJFrame extends javax.swing.JFrame {
                     classe[i] = (String) currentObject.get(key);
                 j++;
             }
+        }
+        for(int i = 0; i < nombreLigneJson; i++)
+        {
+            System.out.println("ACCX : " + accx[i]);
         }
     }
 
