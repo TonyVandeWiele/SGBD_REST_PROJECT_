@@ -20,14 +20,20 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Date;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
 import java.util.Base64;
 import java.util.Iterator;
 
+import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.renderer.category.LineAndShapeRenderer;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import static appwithjsonandrest.GetPost.GetDataJson;
@@ -35,8 +41,8 @@ import static appwithjsonandrest.GetPost.POSTImageJson;
 
 public class MyJFrame extends javax.swing.JFrame {
 
-    String urlGet = "http://192.168.89.131:8080/ords/devadri/test/a";
-    String urlPost = "http://192.168.89.131:8080/ords/devadri/test/a";
+    String urlGet = "http://192.168.175.144:8080/ords/devus/test/a";
+    String urlPost = "http://192.168.175.144:8080/ords/devus/test/a";
     int indexGraphMax = 20;
     int indexGraphMin = 0;
 
@@ -66,7 +72,6 @@ public class MyJFrame extends javax.swing.JFrame {
     public SwingWorker<Void, Void> worker;
     /**
      * Type de graphique
-     *
      * 0 = Pie Chart
      * 1 = Ligne en 2D
      * 2 = Série temporelle
@@ -84,20 +89,25 @@ public class MyJFrame extends javax.swing.JFrame {
     private void showEvolution()
     {
         //region GUI
+        ds = new DefaultCategoryDataset();
         JFreeChart jfc = ChartFactory.createLineChart
-                ("Donnees Vehicule", "Temps", "ACCY",
+                ("Donnees Vehicule", "Temps", "Axes",
                         ds, PlotOrientation.VERTICAL, false, true, false);
 
         // Obtenez le tracé (plot) du graphique
-        CategoryPlot plot = jfc.getCategoryPlot();
+        CategoryPlot plotCategorie = jfc.getCategoryPlot();
 
-        // Obtenez l'axe de l'axe X (catégorie)
-        CategoryAxis xAxis = plot.getDomainAxis();
+        LineAndShapeRenderer renderer = new LineAndShapeRenderer();
+
+        // Définir la couleur de la ligne
+        renderer.setSeriesPaint(0, java.awt.Color.BLUE);
+
+        plotCategorie.setRenderer(renderer);
 
         // Obtenez l'axe de l'axe Y (valeur)
-        NumberAxis yAxis = (NumberAxis) plot.getRangeAxis();
+        NumberAxis yAxis = (NumberAxis) plotCategorie.getRangeAxis();
 
-        yAxis.setRange(-2.5,2.5);
+        yAxis.setRange(-3,3);
 
         ChartPanel chartPanel = new ChartPanel(jfc);
 
@@ -109,6 +119,14 @@ public class MyJFrame extends javax.swing.JFrame {
 
         // Création d'un JTextField
         textFieldTimestamp = new JTextField(20);
+        textFieldTimestamp.addActionListener(a-> {
+            int beginTime = Integer.parseInt(textFieldTimestamp.getText()) - 60;
+            int endTime = Integer.parseInt(textFieldTimestamp.getText());
+
+            StringBuilder dataJson = GetDataJson(urlGet + "?begintime=" + beginTime + "&endtime=" + endTime);
+
+            parsingJSON(dataJson);
+        });
 
         // Création des choix
         String[] choix = {"TORT","DROIT"};
@@ -156,163 +174,170 @@ public class MyJFrame extends javax.swing.JFrame {
 
         //region ACTION LISTENER
 
-        AxesComboBox.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                DefaultCategoryDataset ds = new DefaultCategoryDataset();
-                // Définir le nouveau dataset sur le graphique
-                jfc.getCategoryPlot().setDataset(ds);
+        AxesComboBox.addActionListener(e -> {
 
-                rowKey = (String) AxesComboBox.getSelectedItem();
+            rowKey = (String) AxesComboBox.getSelectedItem();
 
-                switch (AxesComboBox.getSelectedIndex())
-                {
-                    case 0 : axesSelected = accx;
-                        break;
-                    case 1 : axesSelected = accy;
-                        break;
-                    case 2 : axesSelected = accz;
-                        break;
-                    default: axesSelected = accx;
-                }
-                
-                indexGraphMin = 0;
-                indexGraphMax = 20;
+            switch (AxesComboBox.getSelectedIndex())
+            {
+                case 0 : axesSelected = accx;
+                         ds.clear();
+
+                        // Définir la couleur de la ligne
+                        renderer.setSeriesPaint(0, java.awt.Color.GREEN);
+                        plotCategorie.setRenderer(renderer);
+                    break;
+                case 1 : axesSelected = accy;
+                         ds.clear();
+
+                        // Définir la couleur de la ligne
+                        renderer.setSeriesPaint(0, Color.BLUE);
+                        plotCategorie.setRenderer(renderer);
+                    break;
+                case 2 :axesSelected = accz;
+                        ds.clear();
+
+                        // Définir la couleur de la ligne
+                        renderer.setSeriesPaint(0, java.awt.Color.RED);
+                        plotCategorie.setRenderer(renderer);
+                    break;
+                default: axesSelected = accx;
             }
+
+            indexGraphMin = 0;
+            indexGraphMax = 20;
         });
 
         buttonLecture.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-
-                StringBuilder dataJson = GetDataJson(urlGet + "?begintime=" + (Integer.parseInt(textFieldTimestamp.getText())-60) + "&endtime=" + Integer.parseInt(textFieldTimestamp.getText()));
-
-                parsingJSON(dataJson);
-
-
-                for (int i = indexGraphMin; i < nombreLigneJson && i < indexGraphMax; i++)
+                try
                 {
-                    ds.addValue(axesSelected[i], rowKey, Integer.toString(timestamp[i]));
-                    System.out.println(axesSelected[i]);
-                }
+                    ds.clear();
 
-                worker = new SwingWorker<Void, Void>()
-                {
-                    @Override
-                    protected Void doInBackground() throws Exception
-                    {
-                        for (int i = indexGraphMax; indexGraphMax < nombreLigneJson; i++)
-                        {
-                            if (this.isCancelled()) {
-                                System.out.println("CANCELLED");
-                                break; // Si l'annulation est demandée, quittez la boucle
+                    for (int i = indexGraphMin; i < nombreLigneJson && i < indexGraphMax; i++) {
+                        ds.addValue(axesSelected[i], rowKey, convertTimestamp(timestamp[i]));
+                        System.out.println(axesSelected[i]);
+                    }
+
+                    worker = new SwingWorker<>() {
+                        @Override
+                        protected Void doInBackground() {
+                            for (int i = indexGraphMax; indexGraphMax < nombreLigneJson; i++) {
+                                if (this.isCancelled()) {
+                                    System.out.println("CANCELLED");
+                                    break; // Si l'annulation est demandée, quittez la boucle
+                                }
+                                ds.removeValue(rowKey, convertTimestamp(timestamp[indexGraphMin]));
+                                ds.addValue(axesSelected[indexGraphMax], rowKey, convertTimestamp(timestamp[indexGraphMax]));
+                                indexGraphMin++;
+                                indexGraphMax++;
+                                try {
+                                    Thread.sleep(500);
+                                } catch (InterruptedException ex) {
+                                    throw new RuntimeException(ex);
+                                }
                             }
-                            ds.removeValue(rowKey, Integer.toString(timestamp[indexGraphMin]));
-                            ds.addValue(axesSelected[indexGraphMax], rowKey, Integer.toString(timestamp[indexGraphMax]));
-                            indexGraphMin++;
-                            indexGraphMax++;
-                            try {
-                                Thread.sleep(1000);
-                            } catch (InterruptedException ex) {
-                                throw new RuntimeException(ex);
-                            }
+                            return null;
                         }
-                        return null;
-                    }
 
-                    @Override
-                    protected void done() {
-                        chartPanel.repaint();
-                    }
-                };
-                worker.execute();
-            }
-        });
-
-        buttonStop.addActionListener(new ActionListener() 
-        {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (worker != null && !worker.isDone()) {
-                    worker.cancel(true); // Demander l'annulation du SwingWorker
-                    JOptionPane.showMessageDialog(getContentPane(), "Arret de l'opération!");
+                        @Override
+                        protected void done() {
+                            chartPanel.repaint();
+                        }
+                    };
+                    worker.execute();
+                }
+                catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(getContentPane(), "Veuillez entrer un timestamp valide!");
+                }
+                catch (JSONException ex) {
+                    JOptionPane.showMessageDialog(getContentPane(), "Erreur du JSON! " + ex.getMessage());
+                }
+                catch (Exception ex) {
+                    JOptionPane.showMessageDialog(getContentPane(), "Erreur inconnue! " + ex.getMessage());
                 }
             }
         });
 
-        buttonRetour.addActionListener(new ActionListener() 
-        {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (worker != null && !worker.isDone()) {
-                    worker.cancel(true); // Demander l'annulation du SwingWorker
-                    JOptionPane.showMessageDialog(getContentPane(), "Arret de l'opération!");
-                }
+        buttonStop.addActionListener(e -> {
+            if (worker != null && !worker.isDone()) {
+                worker.cancel(true); // Demander l'annulation du SwingWorker
+                JOptionPane.showMessageDialog(getContentPane(), "Arret de l'opération!");
+            }
+        });
 
-                if(indexGraphMin < 20)
+        buttonRetour.addActionListener(e -> {
+            if (worker != null && !worker.isDone()) {
+                worker.cancel(true); // Demander l'annulation du SwingWorker
+                JOptionPane.showMessageDialog(getContentPane(), "Arret de l'opération!");
+            }
+
+            if(indexGraphMin < 20)
+            {
+                indexGraphMin = 0;
+                indexGraphMax = 20;
+            }
+            else
+            {
+                indexGraphMin = indexGraphMin - 20;
+                indexGraphMax = indexGraphMax - 20;
+            }
+            ds.clear();
+
+            for (int i = indexGraphMin; i >= 0 && i < indexGraphMax; i++)
+            {
+                ds.setValue(axesSelected[i], rowKey, convertTimestamp(timestamp[i]));
+                chartPanel.repaint();
+            }
+        });
+
+        buttonSnapShot.addActionListener(e -> {
+            String imagePath="chart.png";
+
+            // Créez une image à partir du graphique
+            BufferedImage image = jfc.createBufferedImage(800, 600);
+            try {
+                File imageFile = new File(imagePath);
+                ImageIO.write(image, "png", imageFile);
+                System.out.println("Image du graphique enregistrée sous chart.png.");
+
+                //Conversion en BASE64 pour envoie
+                String base64Image = convertImageToBase64(imagePath);
+
+                // Récupération de l'heure actuelle
+                LocalTime currentTime = LocalTime.now();
+
+                // Formatage de l'heure en chaîne de caractères
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+                String currentTimeString = currentTime.format(formatter);
+
+                if(POSTImageJson(base64Image,(String) ChoixComboBox.getSelectedItem(), String.valueOf(timestamp[indexGraphMin]), currentTimeString , urlPost) != -1)
                 {
-                    indexGraphMin = 0;
-                    indexGraphMax = 20;
+                    JOptionPane.showMessageDialog(getContentPane(), "Envoi de l'image réussi!");
                 }
                 else
                 {
-                    indexGraphMin = indexGraphMin - 20;
-                    indexGraphMax = indexGraphMax - 20;
+                    JOptionPane.showMessageDialog(getContentPane(), "Erreur lors de l'envoi de l'image!");
                 }
-                ds.clear();
 
-                for (int i = indexGraphMin; i >= 0 && i < indexGraphMax; i++)
-                {
-                    ds.setValue(axesSelected[i], rowKey, Integer.toString(timestamp[i]));
-                    chartPanel.repaint();
-                }
-            }
-        });
-
-        buttonSnapShot.addActionListener(new ActionListener()
-        {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String imagePath="chart.png";
-
-                // Créez une image à partir du graphique
-                BufferedImage image = jfc.createBufferedImage(800, 600);
-                try {
-                    File imageFile = new File(imagePath);
-                    ImageIO.write(image, "png", imageFile);
-                    System.out.println("Image du graphique enregistrée sous chart.png.");
-
-                    //Conversion en BASE64 pour envoie
-                    String base64Image = convertImageToBase64(imagePath);
-                    //System.out.println(base64Image);
-
-                    // Récupération de l'heure actuelle
-                    LocalTime currentTime = LocalTime.now();
-
-                    // Formatage de l'heure en chaîne de caractères
-                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-                    String currentTimeString = currentTime.format(formatter);
-
-                    POSTImageJson(base64Image,(String) ChoixComboBox.getSelectedItem(), textFieldTimestamp.getText(), currentTimeString , urlPost);
-
-                } catch (IOException eIO) {
-                    eIO.printStackTrace();
-                }
+            } catch (IOException eIO) {
+                eIO.printStackTrace();
             }
         });
         //endregion
     }
 
-    public void parsingJSON(StringBuilder dataJson)
-    {
-        //Parsing dans le JSON reçu
+    public void parsingJSON(StringBuilder dataJson) {
+        if (dataJson.length() <= 2) {
+            System.out.println("JSON vide.");
+            throw new JSONException("Pas de donnée trouvée.");
+        }
+
+        // Parsing dans le JSON reçu
         JSONArray received = new JSONArray(new String(dataJson));
-        ds = new DefaultCategoryDataset();
 
         nombreLigneJson = received.length();
-        int nombreKey = 8;
-
-        String[] vecteur = new String[nombreKey];
 
         timestamp = new int[nombreLigneJson];
         accy = new double[nombreLigneJson];
@@ -323,61 +348,75 @@ public class MyJFrame extends javax.swing.JFrame {
         gyrox = new double[nombreLigneJson];
         classe = new String[nombreLigneJson];
 
-
-        for(int i = 0; i < nombreLigneJson; i++)
+        for (int i = 0; i < nombreLigneJson; i++)
         {
             JSONObject currentObject = received.getJSONObject(i);
             Iterator it = currentObject.keys();
-            int j = 0;
-            while(it.hasNext())
-            {
-                String key = (String)it.next();
-                if(key.equals("TIMES_TAMP"))
-                {
+
+            while (it.hasNext()) {
+                String key = (String) it.next();
+                if (key.equals("TIMES_TAMP")) {
                     timestamp[i] = (int) currentObject.get(key);
-                    System.out.println(key + " : " + timestamp[i]);
+                    System.out.println(timestamp[i]);
                 }
-                if(key.equals("ACCY"))
+                if (key.equals("ACCY"))
                     accy[i] = (double) currentObject.get(key);
-                if(key.equals("ACCZ"))
+                if (key.equals("ACCZ"))
                     accz[i] = (double) currentObject.get(key);
-                if(key.equals("GYROY"))
-                    try{
+                if (key.equals("GYROY"))
+                    try {
                         gyroy[i] = (double) currentObject.get(key);
                     } catch (ClassCastException e) {
                         System.out.println("Erreur de casting pour gyroy : " + e.getMessage());
-                        gyroy[i] = (double)(int) currentObject.get(key);
+                        gyroy[i] = (double) (int) currentObject.get(key);
                     }
-                if(key.equals("ACCX"))
+                if (key.equals("ACCX"))
                     accx[i] = (double) currentObject.get(key);
-                if(key.equals("GYROZ"))
+                if (key.equals("GYROZ"))
                     try {
                         gyroz[i] = (double) currentObject.get(key);
                     } catch (ClassCastException e) {
                         System.out.println("Erreur de casting pour gyroz : " + e.getMessage());
-                        gyroz[i] = (double)(int) currentObject.get(key);
+                        gyroz[i] = (double) (int) currentObject.get(key);
                     }
-                if(key.equals("GYROX"))
+                if (key.equals("GYROX"))
                     try {
                         gyrox[i] = (double) currentObject.get(key);
                     } catch (ClassCastException e) {
                         System.out.println("Erreur de casting pour gyrox : " + e.getMessage());
-                        gyrox[i] = (double)(int) currentObject.get(key);
+                        gyrox[i] = (double) (int) currentObject.get(key);
                     }
-                if(key.equals("CLASSE"))
+                if (key.equals("CLASSE"))
                     classe[i] = (String) currentObject.get(key);
-                j++;
             }
         }
-        for(int i = 0; i < nombreLigneJson; i++)
-        {
-            System.out.println("ACCX : " + accx[i]);
-        }
+        axesSelected = accx;
+        rowKey = (String) AxesComboBox.getSelectedItem();
     }
+
 
     public static String convertImageToBase64(String imagePath) throws IOException {
         byte[] imageBytes = Files.readAllBytes(new File(imagePath).toPath());
         return Base64.getEncoder().encodeToString(imageBytes);
+    }
+
+    private static String convertTimestamp(int timestamp) {
+        long millis = timestamp * 1000L;
+        Date date = new Date(millis);
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+
+        return sdf.format(date);
+    }
+
+    private static long convertDateFormatToTimestamp(String timeString) {
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+        try {
+            Date date = sdf.parse(timeString);
+            return (date.getTime() / 1000); // Convertir en secondes
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return -1; // Gérer l'erreur de parsing
+        }
     }
 
 /*    private void showHistogram()

@@ -48,7 +48,7 @@ public class GetPost {
 
         return result;
     }
-    static void POSTImageJson(String base64Img, String choix, String timestamp, String dateheure,String urlIn)
+    static int POSTImageJson(String base64Img, String choix, String timestamp, String dateheure,String urlIn)
     {
         String line;
         StringBuilder result = new StringBuilder();
@@ -88,11 +88,13 @@ public class GetPost {
             }
             rd.close();
 
-            System.out.println("Le JSON des détails:" + result2);
+            System.out.println("Réponse:" + result2);
+            return 0;
 
         }catch (Exception e)
         {
             System.out.println("Error in  getting details : " + e);
+            return -1;
         }
     }
     /**
