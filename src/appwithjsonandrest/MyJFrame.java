@@ -3,10 +3,13 @@ package appwithjsonandrest;
 import javax.imageio.ImageIO;
 import javax.swing.SwingWorker;
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+
+import com.formdev.flatlaf.themes.FlatMacDarkLaf;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
@@ -100,6 +103,8 @@ public class MyJFrame extends javax.swing.JFrame {
 
     private void showEvolution()
     {
+        JPanel mainPanel = new JPanel(new BorderLayout());
+
         //region CREATION DE LA FENETRE
         ds = new DefaultCategoryDataset();
 
@@ -174,12 +179,17 @@ public class MyJFrame extends javax.swing.JFrame {
         Dimension preferredSize = new Dimension(preferredWidth, preferredHeight);
         setPreferredSize(preferredSize);
 
-        // Modifiez le layout du panneau principal pour utiliser BorderLayout.CENTER pour les boutons
-        JPanel mainPanel = new JPanel(new BorderLayout());
+        chartPanel.setBorder(new EmptyBorder(20, 20, 20, 20));  // Marge de 20 pixels autour du ChartPanel
         mainPanel.add(chartPanel, BorderLayout.CENTER);
 
         // Créez un panneau pour les boutons
         JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
+
+
+        buttonPanel.add(new JLabel("Timestamp:"));
+        buttonPanel.add(textFieldTimestamp);
+        buttonPanel.add(Box.createHorizontalStrut(50));
         buttonPanel.add(buttonLecture);
         buttonPanel.add(buttonStop);
         buttonPanel.add(buttonRetour);
@@ -188,19 +198,30 @@ public class MyJFrame extends javax.swing.JFrame {
         buttonPanel.add(buttonDezoom);
         buttonPanel.add(ChoixComboBox);
 
-        // Ajout des cases à cocher au panneau des boutons
-        buttonPanel.add(accxCheckBox);
-        buttonPanel.add(accyCheckBox);
-        buttonPanel.add(acczCheckBox);
-        buttonPanel.add(gyroxCheckBox);
-        buttonPanel.add(gyroyCheckBox);
-        buttonPanel.add(gyrozCheckBox);
 
-        buttonPanel.add(new JLabel("Timestamp:"));
-        buttonPanel.add(textFieldTimestamp);
+        // Ajout des cases à cocher au panneau des boutons
+        JPanel checkBoxPanel = new JPanel();
+        checkBoxPanel.setLayout(new BoxLayout(checkBoxPanel, BoxLayout.Y_AXIS));
+        checkBoxPanel.setBorder(BorderFactory.createEmptyBorder(20, 10, 20, 20));
+
+        checkBoxPanel.add(Box.createVerticalStrut(100));
+        checkBoxPanel.add(new JLabel("Axes:"));
+        checkBoxPanel.add(Box.createVerticalStrut(20));
+        checkBoxPanel.add(accxCheckBox);
+        checkBoxPanel.add(Box.createVerticalStrut(20));
+        checkBoxPanel.add(accyCheckBox);
+        checkBoxPanel.add(Box.createVerticalStrut(20));
+        checkBoxPanel.add(acczCheckBox);
+        checkBoxPanel.add(Box.createVerticalStrut(20));
+        checkBoxPanel.add(gyroxCheckBox);
+        checkBoxPanel.add(Box.createVerticalStrut(20));
+        checkBoxPanel.add(gyroyCheckBox);
+        checkBoxPanel.add(Box.createVerticalStrut(20));
+        checkBoxPanel.add(gyrozCheckBox);
 
         // Ajoutez le panneau des boutons au panneau principal dans la région SUD
         mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+        mainPanel.add(checkBoxPanel, BorderLayout.EAST);
 
         // Ajoutez le panneau principal à la fenêtre
         setContentPane(mainPanel);
@@ -252,6 +273,7 @@ public class MyJFrame extends javax.swing.JFrame {
                     @Override
                     protected Void doInBackground() {
                         for (int i = indexGraphMax; indexGraphMax < nombreLigneJson; i++) {
+                            int nbrCheckBoxSelected = 0;
 
                             if (this.isCancelled()) {
                                 System.out.println("CANCELLED");
@@ -265,7 +287,13 @@ public class MyJFrame extends javax.swing.JFrame {
 
                                     ds.removeValue(key, convertTimestamp(timestamp[indexGraphMin]));
                                     ds.addValue(dataVectors.get(key)[indexGraphMax], key, convertTimestamp(timestamp[indexGraphMax]));
+                                    nbrCheckBoxSelected++;
                                 }
+                            }
+                            if(nbrCheckBoxSelected == 0)
+                            {
+                                JOptionPane.showMessageDialog(getContentPane(), "Veuillez sélectionner au moins une case à cocher!");
+                                break;
                             }
                             indexGraphMin++;
                             indexGraphMax++;
@@ -278,7 +306,6 @@ public class MyJFrame extends javax.swing.JFrame {
                         }
                         return null;
                     }
-
                     @Override
                     protected void done() {
                         chartPanel.repaint();
@@ -595,6 +622,13 @@ public class MyJFrame extends javax.swing.JFrame {
                 layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                         .addGap(0, 300, Short.MAX_VALUE)
         );
+
+        try{
+            UIManager.setLookAndFeel(new FlatMacDarkLaf());
+        }
+        catch (Exception e){
+            System.out.println("Erreur lors du chargement du Look and Feel");
+        }
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
