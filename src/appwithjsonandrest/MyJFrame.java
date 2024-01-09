@@ -10,18 +10,20 @@ import java.awt.event.ActionListener;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
-import org.jfree.chart.axis.CategoryAxis;
 import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
 
+import java.util.HashMap;
+import java.util.Map;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Date;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -29,7 +31,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.Iterator;
 
-import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.category.LineAndShapeRenderer;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.json.JSONArray;
@@ -45,8 +46,13 @@ public class MyJFrame extends javax.swing.JFrame {
     String urlPost = "http://192.168.175.144:8080/ords/devus/test/a";
     int indexGraphMax = 20;
     int indexGraphMin = 0;
+    boolean dataLoaded = false;
+    double lowerZoom = -3;
+    double upperZoom = 3;
 
     DefaultCategoryDataset ds;
+    LineAndShapeRenderer renderer;
+    CategoryPlot plotCategorie;
 
     int[] timestamp;
     double[] accy;
@@ -56,91 +62,114 @@ public class MyJFrame extends javax.swing.JFrame {
     double[] gyroz;
     double[] gyrox;
     String[] classe;
+
     int nombreLigneJson;
 
 
-    double[] axesSelected;
-    String rowKey;
+    double[] dataSelected;
 
+    ChartPanel chartPanel;
 
     JTextField textFieldTimestamp;
     JComboBox<String> ChoixComboBox;
-
     JComboBox<String> AxesComboBox;
+
+    JButton buttonLecture;
+    JButton buttonStop;
+    JButton buttonRetour;
+    JButton buttonSnapShot;
+    JButton buttonZoom;
+    JButton buttonDezoom;
+
+    Map<String, double[]> dataVectors;
+    List<JCheckBox> checkBoxes;
+    JCheckBox accxCheckBox;
+    JCheckBox accyCheckBox;
+    JCheckBox acczCheckBox;
+    JCheckBox gyroxCheckBox;
+    JCheckBox gyroyCheckBox;
+    JCheckBox gyrozCheckBox;
 
 
     public SwingWorker<Void, Void> worker;
-    /**
-     * Type de graphique
-     * 0 = Pie Chart
-     * 1 = Ligne en 2D
-     * 2 = Série temporelle
-     * 3 = Autre série temporelle
-     * 4 = Bar chart
-     * 5 = Scatter plot
-     * 6 = Histogram
-     */
-    public static int graphType = 1;
 
     public MyJFrame() {
         initComponents();
         showEvolution();
     }
+
     private void showEvolution()
     {
-        //region GUI
+        //region CREATION DE LA FENETRE
         ds = new DefaultCategoryDataset();
+
+        dataSelected = accx;
+
         JFreeChart jfc = ChartFactory.createLineChart
                 ("Donnees Vehicule", "Temps", "Axes",
-                        ds, PlotOrientation.VERTICAL, false, true, false);
+                        ds, PlotOrientation.VERTICAL, true, true, false);
 
         // Obtenez le tracé (plot) du graphique
-        CategoryPlot plotCategorie = jfc.getCategoryPlot();
+        plotCategorie = jfc.getCategoryPlot();
 
-        LineAndShapeRenderer renderer = new LineAndShapeRenderer();
+        renderer = new LineAndShapeRenderer();
 
         // Définir la couleur de la ligne
         renderer.setSeriesPaint(0, java.awt.Color.BLUE);
+        renderer.setSeriesPaint(1, java.awt.Color.RED);
+        renderer.setSeriesPaint(2, java.awt.Color.GREEN);
+        renderer.setSeriesPaint(3, Color.YELLOW);
+        renderer.setSeriesPaint(4, Color.ORANGE);
+        renderer.setSeriesPaint(5, Color.BLACK);
 
         plotCategorie.setRenderer(renderer);
 
         // Obtenez l'axe de l'axe Y (valeur)
         NumberAxis yAxis = (NumberAxis) plotCategorie.getRangeAxis();
 
-        yAxis.setRange(-3,3);
+        yAxis.setRange(lowerZoom,upperZoom);
 
-        ChartPanel chartPanel = new ChartPanel(jfc);
+        chartPanel = new ChartPanel(jfc);
 
         // Créez des boutons
-        JButton buttonLecture = new JButton("Lecture");
-        JButton buttonStop = new JButton("Stop");
-        JButton buttonRetour = new JButton("Retour");
-        JButton buttonSnapShot = new JButton("Snapchot");
+        buttonLecture = new JButton("Lecture");
+        buttonStop = new JButton("Stop");
+        buttonRetour = new JButton("Retour");
+        buttonSnapShot = new JButton("Snapchot");
+        buttonZoom = new JButton("+");
+        buttonDezoom = new JButton("-");
 
-        // Création d'un JTextField
-        textFieldTimestamp = new JTextField(20);
-        textFieldTimestamp.addActionListener(a-> {
-            int beginTime = Integer.parseInt(textFieldTimestamp.getText()) - 60;
-            int endTime = Integer.parseInt(textFieldTimestamp.getText());
 
-            StringBuilder dataJson = GetDataJson(urlGet + "?begintime=" + beginTime + "&endtime=" + endTime);
+        // Création des checkBoxes pour les axes
+        accxCheckBox = new JCheckBox("ACCX");
+        accyCheckBox = new JCheckBox("ACCY");
+        acczCheckBox = new JCheckBox("ACCZ");
+        gyroxCheckBox = new JCheckBox("GYROX");
+        gyroyCheckBox = new JCheckBox("GYROY");
+        gyrozCheckBox = new JCheckBox("GYROZ");
 
-            parsingJSON(dataJson);
-        });
+        // Initialisation de la liste des checkBoxes
+        checkBoxes = new ArrayList<>();
+        // Ajout des checkBoxes à la liste
+        checkBoxes.add(accxCheckBox);
+        checkBoxes.add(accyCheckBox);
+        checkBoxes.add(acczCheckBox);
+        checkBoxes.add(gyroxCheckBox);
+        checkBoxes.add(gyroyCheckBox);
+        checkBoxes.add(gyrozCheckBox);
 
         // Création des choix
         String[] choix = {"TORT","DROIT"};
+
         // Initialisation de la JComboBox
         ChoixComboBox = new JComboBox<>(choix);
 
-        // Création des axes
-        String[] Axes = {"ACCX", "ACCY", "ACCZ"};
-        // Initialisation de la JComboBox
-        AxesComboBox = new JComboBox<>(Axes);
-
+        // Création d'un JTextField
+        textFieldTimestamp = new JTextField(8);
+        
         // Définissez la taille préférée de la fenêtre
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        int preferredWidth = (int) (screenSize.width * 0.8); // Utilisez 80% de la largeur de l'écran
+        int preferredWidth = (int) (screenSize.width * 0.9); // Utilisez 80% de la largeur de l'écran
         int preferredHeight = (int) (screenSize.height * 0.8); // Utilisez 80% de la hauteur de l'écran
         Dimension preferredSize = new Dimension(preferredWidth, preferredHeight);
         setPreferredSize(preferredSize);
@@ -155,8 +184,19 @@ public class MyJFrame extends javax.swing.JFrame {
         buttonPanel.add(buttonStop);
         buttonPanel.add(buttonRetour);
         buttonPanel.add(buttonSnapShot);
-        buttonPanel.add(AxesComboBox);
+        buttonPanel.add(buttonZoom);
+        buttonPanel.add(buttonDezoom);
         buttonPanel.add(ChoixComboBox);
+
+        // Ajout des cases à cocher au panneau des boutons
+        buttonPanel.add(accxCheckBox);
+        buttonPanel.add(accyCheckBox);
+        buttonPanel.add(acczCheckBox);
+        buttonPanel.add(gyroxCheckBox);
+        buttonPanel.add(gyroyCheckBox);
+        buttonPanel.add(gyrozCheckBox);
+
+        buttonPanel.add(new JLabel("Timestamp:"));
         buttonPanel.add(textFieldTimestamp);
 
         // Ajoutez le panneau des boutons au panneau principal dans la région SUD
@@ -170,93 +210,81 @@ public class MyJFrame extends javax.swing.JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setVisible(true);
+        desactiveButton();
         //endregion
 
         //region ACTION LISTENER
 
-        AxesComboBox.addActionListener(e -> {
+        // Utilisation de la méthode pour ajouter des listeners aux cases à cocher
+        addCheckBoxListener(accxCheckBox);
+        addCheckBoxListener(accyCheckBox);
+        addCheckBoxListener(acczCheckBox);
+        addCheckBoxListener(gyroxCheckBox);
+        addCheckBoxListener(gyroyCheckBox);
+        addCheckBoxListener(gyrozCheckBox);
+        
+        textFieldTimestamp.addActionListener(a-> {
+            try {
+                int beginTime = Integer.parseInt(textFieldTimestamp.getText()) - 60;
+                int endTime = Integer.parseInt(textFieldTimestamp.getText());
 
-            rowKey = (String) AxesComboBox.getSelectedItem();
+                StringBuilder dataJson = GetDataJson(urlGet + "?begintime=" + beginTime + "&endtime=" + endTime);
 
-            switch (AxesComboBox.getSelectedIndex())
-            {
-                case 0 : axesSelected = accx;
-                         ds.clear();
-
-                        // Définir la couleur de la ligne
-                        renderer.setSeriesPaint(0, java.awt.Color.GREEN);
-                        plotCategorie.setRenderer(renderer);
-                    break;
-                case 1 : axesSelected = accy;
-                         ds.clear();
-
-                        // Définir la couleur de la ligne
-                        renderer.setSeriesPaint(0, Color.BLUE);
-                        plotCategorie.setRenderer(renderer);
-                    break;
-                case 2 :axesSelected = accz;
-                        ds.clear();
-
-                        // Définir la couleur de la ligne
-                        renderer.setSeriesPaint(0, java.awt.Color.RED);
-                        plotCategorie.setRenderer(renderer);
-                    break;
-                default: axesSelected = accx;
+                parsingJSON(dataJson);
+                JOptionPane.showMessageDialog(getContentPane(), "Données chargées avec succès!");
+                activeButton();
             }
-
-            indexGraphMin = 0;
-            indexGraphMax = 20;
+            catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(getContentPane(), "Veuillez entrer un timestamp valide!");
+            }
+                catch (JSONException ex) {
+                JOptionPane.showMessageDialog(getContentPane(), "Erreur du JSON! " + ex.getMessage());
+            }
+                catch (Exception ex) {
+                JOptionPane.showMessageDialog(getContentPane(), "Erreur inconnue! " + ex.getMessage());
+            }
         });
 
         buttonLecture.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                try
-                {
-                    ds.clear();
+                worker = new SwingWorker<>() {
+                    @Override
+                    protected Void doInBackground() {
+                        for (int i = indexGraphMax; indexGraphMax < nombreLigneJson; i++) {
 
-                    for (int i = indexGraphMin; i < nombreLigneJson && i < indexGraphMax; i++) {
-                        ds.addValue(axesSelected[i], rowKey, convertTimestamp(timestamp[i]));
-                        System.out.println(axesSelected[i]);
-                    }
+                            if (this.isCancelled()) {
+                                System.out.println("CANCELLED");
+                                break;
+                            }
 
-                    worker = new SwingWorker<>() {
-                        @Override
-                        protected Void doInBackground() {
-                            for (int i = indexGraphMax; indexGraphMax < nombreLigneJson; i++) {
-                                if (this.isCancelled()) {
-                                    System.out.println("CANCELLED");
-                                    break; // Si l'annulation est demandée, quittez la boucle
-                                }
-                                ds.removeValue(rowKey, convertTimestamp(timestamp[indexGraphMin]));
-                                ds.addValue(axesSelected[indexGraphMax], rowKey, convertTimestamp(timestamp[indexGraphMax]));
-                                indexGraphMin++;
-                                indexGraphMax++;
-                                try {
-                                    Thread.sleep(500);
-                                } catch (InterruptedException ex) {
-                                    throw new RuntimeException(ex);
+                            // Parcourez toutes les cases à cocher et mettez à jour le graphique en conséquence
+                            for (JCheckBox checkBox : checkBoxes) {
+                                if (checkBox.isSelected()) {
+                                    String key = checkBox.getText(); // Utilise le texte de la case comme clé pour accéder au champ de la HashMap
+
+                                    ds.removeValue(key, convertTimestamp(timestamp[indexGraphMin]));
+                                    ds.addValue(dataVectors.get(key)[indexGraphMax], key, convertTimestamp(timestamp[indexGraphMax]));
                                 }
                             }
-                            return null;
-                        }
+                            indexGraphMin++;
+                            indexGraphMax++;
 
-                        @Override
-                        protected void done() {
-                            chartPanel.repaint();
+                            try {
+                                Thread.sleep(500);
+                            } catch (InterruptedException ex) {
+                                throw new RuntimeException(ex);
+                            }
                         }
-                    };
-                    worker.execute();
-                }
-                catch (NumberFormatException ex) {
-                    JOptionPane.showMessageDialog(getContentPane(), "Veuillez entrer un timestamp valide!");
-                }
-                catch (JSONException ex) {
-                    JOptionPane.showMessageDialog(getContentPane(), "Erreur du JSON! " + ex.getMessage());
-                }
-                catch (Exception ex) {
-                    JOptionPane.showMessageDialog(getContentPane(), "Erreur inconnue! " + ex.getMessage());
-                }
+                        return null;
+                    }
+
+                    @Override
+                    protected void done() {
+                        chartPanel.repaint();
+                    }
+                };
+                worker.execute();
             }
         });
 
@@ -283,12 +311,18 @@ public class MyJFrame extends javax.swing.JFrame {
                 indexGraphMin = indexGraphMin - 20;
                 indexGraphMax = indexGraphMax - 20;
             }
+
             ds.clear();
 
-            for (int i = indexGraphMin; i >= 0 && i < indexGraphMax; i++)
-            {
-                ds.setValue(axesSelected[i], rowKey, convertTimestamp(timestamp[i]));
-                chartPanel.repaint();
+            // Parcourez toutes les cases à cocher et mettez à jour le graphique en conséquence
+            for (JCheckBox checkBox : checkBoxes) {
+                if (checkBox.isSelected()) {
+                    String key = checkBox.getText(); // Utilise le texte de la case comme clé pour accéder au champ de la HashMap
+
+                    for (int i = indexGraphMin; i < nombreLigneJson && i < indexGraphMax; i++) {
+                        ds.addValue(dataVectors.get(key)[i], key, convertTimestamp(timestamp[i]));
+                    }
+                }
             }
         });
 
@@ -325,10 +359,44 @@ public class MyJFrame extends javax.swing.JFrame {
                 eIO.printStackTrace();
             }
         });
+
+        buttonZoom.addActionListener( e -> {
+            if(upperZoom <= 1)
+            {
+                if(upperZoom <= 0.2)
+                {
+                    JOptionPane.showMessageDialog(getContentPane(), "Zoom minimal atteint!");
+                    return;
+                }
+                lowerZoom = lowerZoom + 0.1;
+                upperZoom = upperZoom - 0.1;
+                yAxis.setRange(lowerZoom,upperZoom);
+                return;
+            }
+            yAxis.setRange(++lowerZoom,--upperZoom);
+        });
+
+        buttonDezoom.addActionListener( e -> {
+            if(upperZoom >= 10)
+            {
+                JOptionPane.showMessageDialog(getContentPane(), "Dezoom maximal atteint!");
+                return;
+            }
+            if (upperZoom < 1)
+            {
+                lowerZoom = lowerZoom - 0.1;
+                upperZoom = upperZoom + 0.1;
+                yAxis.setRange(lowerZoom,upperZoom);
+                return;
+            }
+            yAxis.setRange(--lowerZoom,++upperZoom);
+            chartPanel.repaint();
+        });
         //endregion
     }
 
-    public void parsingJSON(StringBuilder dataJson) {
+
+    public void parsingJSON(StringBuilder dataJson) throws JSONException {
         if (dataJson.length() <= 2) {
             System.out.println("JSON vide.");
             throw new JSONException("Pas de donnée trouvée.");
@@ -355,45 +423,143 @@ public class MyJFrame extends javax.swing.JFrame {
 
             while (it.hasNext()) {
                 String key = (String) it.next();
-                if (key.equals("TIMES_TAMP")) {
-                    timestamp[i] = (int) currentObject.get(key);
-                    System.out.println(timestamp[i]);
+                switch (key) {
+                    case "TIMES_TAMP":
+                        timestamp[i] = (int) currentObject.get(key);
+                        System.out.println(timestamp[i]);
+                        break;
+
+                    case "ACCY":
+                        try {
+                            accy[i] = (double) currentObject.get(key);
+                        } catch (ClassCastException e) {
+                            System.out.println("Erreur de casting pour " + key + " : " + e.getMessage());
+                            accy[i] = (double) (int) currentObject.get(key);
+                        }
+                        break;
+
+                    case "ACCZ":
+                        try {
+                            accz[i] = (double) currentObject.get(key);
+                        } catch (ClassCastException e) {
+                            System.out.println("Erreur de casting pour " + key + " : " + e.getMessage());
+                            accz[i] = (double) (int) currentObject.get(key);
+                        }
+                        break;
+
+                    case "GYROY":
+                        try {
+                            gyroy[i] = (double) currentObject.get(key);
+                        } catch (ClassCastException e) {
+                            System.out.println("Erreur de casting pour " + key + " : " + e.getMessage());
+                            gyroy[i] = (double) (int) currentObject.get(key);
+                        }
+                        break;
+
+                    case "GYROZ":
+                        try {
+                            gyroz[i] = (double) currentObject.get(key);
+                        } catch (ClassCastException e) {
+                            System.out.println("Erreur de casting pour " + key + " : " + e.getMessage());
+                            gyroz[i] = (double) (int) currentObject.get(key);
+                        }
+                        break;
+
+                    case "GYROX":
+                        try {
+                            gyrox[i] = (double) currentObject.get(key);
+                        } catch (ClassCastException e) {
+                            System.out.println("Erreur de casting pour " + key + " : " + e.getMessage());
+                            gyrox[i] = (double) (int) currentObject.get(key);
+                        }
+                        break;
+
+                    case "ACCX":
+                        try {
+                            accx[i] = (double) currentObject.get(key);
+                        } catch (ClassCastException e) {
+                            System.out.println("Erreur de casting pour " + key + " : " + e.getMessage());
+                            accx[i] = (double) (int) currentObject.get(key);
+                        }
+                        break;
+
+                    case "CLASSE":
+                        classe[i] = (String) currentObject.get(key);
+                        break;
+
+                    default:
+                        // Gérer le cas par défaut si nécessaire
+                        System.out.println("Clé non gérée : " + key);
                 }
-                if (key.equals("ACCY"))
-                    accy[i] = (double) currentObject.get(key);
-                if (key.equals("ACCZ"))
-                    accz[i] = (double) currentObject.get(key);
-                if (key.equals("GYROY"))
-                    try {
-                        gyroy[i] = (double) currentObject.get(key);
-                    } catch (ClassCastException e) {
-                        System.out.println("Erreur de casting pour gyroy : " + e.getMessage());
-                        gyroy[i] = (double) (int) currentObject.get(key);
-                    }
-                if (key.equals("ACCX"))
-                    accx[i] = (double) currentObject.get(key);
-                if (key.equals("GYROZ"))
-                    try {
-                        gyroz[i] = (double) currentObject.get(key);
-                    } catch (ClassCastException e) {
-                        System.out.println("Erreur de casting pour gyroz : " + e.getMessage());
-                        gyroz[i] = (double) (int) currentObject.get(key);
-                    }
-                if (key.equals("GYROX"))
-                    try {
-                        gyrox[i] = (double) currentObject.get(key);
-                    } catch (ClassCastException e) {
-                        System.out.println("Erreur de casting pour gyrox : " + e.getMessage());
-                        gyrox[i] = (double) (int) currentObject.get(key);
-                    }
-                if (key.equals("CLASSE"))
-                    classe[i] = (String) currentObject.get(key);
             }
         }
-        axesSelected = accx;
-        rowKey = (String) AxesComboBox.getSelectedItem();
+        // Déclarez la structure de données pour stocker les vecteurs de données avec leurs clés associées
+        dataVectors = new HashMap<>();
+
+        // Initialisez les vecteurs de données
+        dataVectors.put("ACCX", accx);
+        dataVectors.put("ACCY", accy);
+        dataVectors.put("ACCZ", accz);
+        dataVectors.put("GYROX", gyrox);
+        dataVectors.put("GYROY", gyroy);
+        dataVectors.put("GYROZ", gyroz);
     }
 
+    private void addCheckBoxListener(JCheckBox checkBox) {
+        checkBox.addActionListener(e -> {
+            String key = checkBox.getText();
+            if (checkBox.isSelected()) {
+                // Initialisation des données
+                for (int i = indexGraphMin; i < nombreLigneJson && i < indexGraphMax; i++) {
+                    ds.addValue(dataVectors.get(key)[i], key, convertTimestamp(timestamp[i]));
+                }
+                chartPanel.repaint();
+            }
+            else {
+                //Suppression des données
+                for (int i = indexGraphMin; i < nombreLigneJson && i < indexGraphMax; i++) {
+                    ds.removeValue(key, convertTimestamp(timestamp[i]));
+                }
+                chartPanel.repaint();
+            }
+        });
+    }
+
+    private void activeButton()
+    {
+        buttonZoom.setEnabled(true);
+        buttonDezoom.setEnabled(true);
+        buttonLecture.setEnabled(true);
+        buttonRetour.setEnabled(true);
+        buttonSnapShot.setEnabled(true);
+        buttonStop.setEnabled(true);
+        chartPanel.setEnabled(true);
+        ChoixComboBox.setEnabled(true);
+        accxCheckBox.setEnabled(true);
+        accyCheckBox.setEnabled(true);
+        acczCheckBox.setEnabled(true);
+        gyroxCheckBox.setEnabled(true);
+        gyroyCheckBox.setEnabled(true);
+        gyrozCheckBox.setEnabled(true);
+    }
+
+    private void desactiveButton()
+    {
+        buttonZoom.setEnabled(false);
+        buttonDezoom.setEnabled(false);
+        buttonLecture.setEnabled(false);
+        buttonRetour.setEnabled(false);
+        buttonSnapShot.setEnabled(false);
+        buttonStop.setEnabled(false);
+        chartPanel.setEnabled(false);
+        ChoixComboBox.setEnabled(false);
+        accxCheckBox.setEnabled(false);
+        accyCheckBox.setEnabled(false);
+        acczCheckBox.setEnabled(false);
+        gyroxCheckBox.setEnabled(false);
+        gyroyCheckBox.setEnabled(false);
+        gyrozCheckBox.setEnabled(false);
+    }
 
     public static String convertImageToBase64(String imagePath) throws IOException {
         byte[] imageBytes = Files.readAllBytes(new File(imagePath).toPath());
@@ -407,207 +573,6 @@ public class MyJFrame extends javax.swing.JFrame {
 
         return sdf.format(date);
     }
-
-    private static long convertDateFormatToTimestamp(String timeString) {
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
-        try {
-            Date date = sdf.parse(timeString);
-            return (date.getTime() / 1000); // Convertir en secondes
-        } catch (ParseException e) {
-            e.printStackTrace();
-            return -1; // Gérer l'erreur de parsing
-        }
-    }
-
-/*    private void showHistogram()
-    {
-        double[] values = { 95, 49, 14, 59, 50, 66, 47, 40, 1, 67,
-                12, 58, 28, 63, 14, 9, 31, 17, 94, 71,
-                49, 64, 73, 97, 15, 63, 10, 12, 31, 62,
-                93, 49, 74, 90, 59, 14, 15, 88, 26, 57,
-                77, 44, 58, 91, 10, 67, 57, 19, 88, 84
-        };
-
-
-        HistogramDataset dataset = new HistogramDataset();
-        dataset.addSeries("key", values, 10);
-
-        JFreeChart jfc = ChartFactory.createHistogram("JFreeChart Histogram",
-                "Data", "Frequency", dataset);
-
-        ChartPanel cp = new ChartPanel(jfc);
-        setContentPane(cp);
-    }
-
-    private void showBarChart()
-    {
-        String jour1 = "lundi", jour2 = "vendredi";
-        String atelier1 = "Huy", atelier2 = "Verviers", atelier3 = "Liège", atelier4 = "Waremme";
-
-        DefaultCategoryDataset ds = new DefaultCategoryDataset();
-        ds.addValue(25.3, jour1, atelier1);
-        ds.addValue(20.7, jour2, atelier1);
-        ds.addValue(30.1, jour1, atelier2);
-        ds.addValue(34.2, jour2, atelier2);
-        ds.addValue(85.3, jour1, atelier3);
-        ds.addValue(82.1, jour2, atelier3);
-        ds.addValue(19.6, jour1, atelier4);
-        ds.addValue(15.9, jour2, atelier4);
-
-        JFreeChart jfc = ChartFactory.createBarChart(
-                "Productions de bouteilles de lait (en milliers)",
-                "Ateliers",
-                "Production",
-                ds,
-                PlotOrientation.VERTICAL,
-                true, true, false
-        );
-
-        ChartPanel cp = new ChartPanel(jfc);
-        setContentPane(cp);
-    }
-
-    private void showScatterPlot()
-    {
-        double couples[][] = { {3.8,68.0}, {3.6,72.0}, {3.4,86.0}, {3.5,78.0}, {3.9,64.0},
-                {4.2,61.0}, {3.7,66.0}, {3.5,74.0}, {3.8,59.0}, {4.1,55.0},
-                {3.7,64.0}, {3.6,73.0}, {3.8,62.0}, {3.4,75.0}, {3.5,78.0} };
-        XYSeries serieObs = new XYSeries("Relations vision-manipulation");
-        for (int i=0; i<15; i++)
-            serieObs.add(couples[i][0],couples[i][1]);
-        XYSeriesCollection ds = new XYSeriesCollection();
-        ds.addSeries(serieObs);
-
-        JFreeChart jfc = ChartFactory.createScatterPlot(
-                "Perception visuelle et habileté manuelle",
-                "réponse à stimulus visuel", "dextérité manuelle",
-                ds,
-                PlotOrientation.VERTICAL,
-                true, true, false );
-
-        ChartPanel cp = new ChartPanel(jfc);
-        setContentPane(cp);
-    }
-
-    private void showPieChart()
-    {
-        // 1. Définir un dataset qui contient les data
-        DefaultPieDataset ds = new DefaultPieDataset();
-        ds.setValue("Parti du progrès contrôlé", 22.36);
-        ds.setValue("Parti démocrate conservateur", 27.69);
-        ds.setValue("Intérêts des gens riches", 3.78);
-        ds.setValue("Prolétariat uni", 7.85);
-        ds.setValue("Mouvement des Gens Heureux", 35.12);
-        ds.setValue("Autres", 3.2);
-        // 2. Se fournir un JFreeChart
-        JFreeChart jfc = ChartFactory.createPieChart (
-                "Résulats des élections en Boursoulavie", ds, true, true, true);
-        // 3. Fabriquer le Panel
-        ChartPanel cp = new ChartPanel(jfc);
-        setContentPane(cp);
-
-        SwingUtilities.invokeLater(new Runnable() {public void run() {
-            try {
-                sleep(5000);}catch(Exception e){}
-            ds.setValue("Oubliés", 1.2);}}
-        );
-    }
-
-    private void showTimeSeries()
-    {
-        double [][] ProductionsLait = {
-                {65.23, 54.54, 59.71, 45.12,
-                        32.14, 32.19, 40.84, 46.21,
-                        47.67, 42.36, 45.65, 55.81 },
-                {60.31, 57.54, 62.71, 49.12,
-                        30.14, 38.19, 44.84, 49.21,
-                        53.67, 54.36, 49.65, 56.81 }
-        };
-
-        String[] lieuxProductions = { "Trois-Ponts", "Stavelot"};
-        int annee = 2006;
-
-        Productions[] p = new Productions[2];
-
-        try
-        {
-            for (int j=0; j<lieuxProductions.length; j++)
-                p[j] = new Productions(Calendar.MONTH, ProductionsLait[j], annee);
-        }
-        catch (InvalidDataProduction e)
-        {
-            System.out.println("Oh oh ... " + e.getMessage());
-        }
-
-        Calendar c = Calendar.getInstance();
-
-        TimeSeriesCollection ds = new TimeSeriesCollection();
-        TimeSeries[] s = new TimeSeries[2];
-        for (int j=0; j<lieuxProductions.length; j++)
-        {
-            s[j] = new TimeSeries("Productions de lait en " + p[j].getPeriodeSuperieure() + " à "  + lieuxProductions[j]); //, Month.class);
-
-            for (int i = 1; i<= c.getActualMaximum(p[j].getTypePeriode()); i++ )
-            {
-                s[j].add(new Month(i, p[j].getPeriodeSuperieure()), p[j].getData()[i-1]);
-            }
-            ds.addSeries(s[j]);
-        }
-
-        JFreeChart jfc = ChartFactory.createTimeSeriesChart(
-                "Productions de lait",
-                "Date", // x
-                "Milliers de litres", // y
-                ds,
-                true, true, false
-        );
-        ChartPanel cp = new ChartPanel(jfc);
-        setContentPane(cp);
-    }
-
-    private XYDataset createDataset()
-    {
-        TimeSeriesCollection dataset = new TimeSeriesCollection();
-
-        TimeSeries series1 = new TimeSeries("Series1");
-        series1.add(new Day(1, 1, 2017), 50);
-        series1.add(new Day(2, 1, 2017), 40);
-        series1.add(new Day(3, 1, 2017), 45);
-        series1.add(new Day(4, 1, 2017), 30);
-        series1.add(new Day(5, 1, 2017), 50);
-        series1.add(new Day(6, 1, 2017), 45);
-        series1.add(new Day(7, 1, 2017), 60);
-        series1.add(new Day(8, 1, 2017), 45);
-        series1.add(new Day(9, 1, 2017), 55);
-        series1.add(new Day(10, 1, 2017), 48);
-        series1.add(new Day(11, 1, 2017), 60);
-        series1.add(new Day(12, 1, 2017), 45);
-        series1.add(new Day(13, 1, 2017), 65);
-        series1.add(new Day(14, 1, 2017), 45);
-        series1.add(new Day(15, 1, 2017), 55);
-        dataset.addSeries(series1);
-
-        TimeSeries series2 = new TimeSeries("Series2");
-        series2.add(new Day(1, 1, 2017), 40);
-        series2.add(new Day(2, 1, 2017), 35);
-        series2.add(new Day(3, 1, 2017), 26);
-        series2.add(new Day(4, 1, 2017), 45);
-        series2.add(new Day(5, 1, 2017), 40);
-        series2.add(new Day(6, 1, 2017), 35);
-        series2.add(new Day(7, 1, 2017), 45);
-        series2.add(new Day(8, 1, 2017), 48);
-        series2.add(new Day(9, 1, 2017), 31);
-        series2.add(new Day(10, 1, 2017), 32);
-        series2.add(new Day(11, 1, 2017), 21);
-        series2.add(new Day(12, 1, 2017), 35);
-        series2.add(new Day(13, 1, 2017), 10);
-        series2.add(new Day(14, 1, 2017), 25);
-        series2.add(new Day(15, 1, 2017), 15);
-        dataset.addSeries(series2);
-
-
-        return dataset;
-    }*/
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -633,8 +598,6 @@ public class MyJFrame extends javax.swing.JFrame {
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
-
-
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     // End of variables declaration//GEN-END:variables
