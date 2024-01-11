@@ -52,8 +52,7 @@ public class GetPost {
     {
         String line;
         StringBuilder result = new StringBuilder();
-        //TEST AVEC DES PARAMETRES DANS LE BODY
-        StringBuilder result2 = new StringBuilder();
+
         try
         {
             JSONObject json = new JSONObject();
@@ -83,12 +82,12 @@ public class GetPost {
 
             while ((line = rd.readLine()) != null)
             {
-                result2.append(line);
+                result.append(line);
                 System.out.println(line);
             }
             rd.close();
 
-            System.out.println("Réponse:" + result2);
+            System.out.println("Réponse:" + result);
             return 0;
 
         }catch (Exception e)
@@ -97,15 +96,4 @@ public class GetPost {
             return -1;
         }
     }
-    /**
-     * @param args the command line arguments
-     */
-
-    public static void main(String[] args) {
-        //Envoi d'une requête à la DB par REST
-        //testGET();
-        //testPOST();
-
-    }
-
 }

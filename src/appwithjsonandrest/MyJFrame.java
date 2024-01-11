@@ -17,6 +17,7 @@ import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,7 +29,6 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Date;
 import java.text.SimpleDateFormat;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
 import java.util.Base64;
@@ -49,7 +49,7 @@ public class MyJFrame extends javax.swing.JFrame {
     String urlPost = "http://192.168.175.144:8080/ords/devus/test/a";
     int indexGraphMax = 20;
     int indexGraphMin = 0;
-    boolean dataLoaded = false;
+    boolean active = false;
     double lowerZoom = -3;
     double upperZoom = 3;
 
@@ -140,7 +140,7 @@ public class MyJFrame extends javax.swing.JFrame {
         buttonLecture = new JButton("Lecture");
         buttonStop = new JButton("Stop");
         buttonRetour = new JButton("Retour");
-        buttonSnapShot = new JButton("Snapchot");
+        buttonSnapShot = new JButton("Snapshot");
         buttonZoom = new JButton("+");
         buttonDezoom = new JButton("-");
 
@@ -269,9 +269,16 @@ public class MyJFrame extends javax.swing.JFrame {
         buttonLecture.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
+                if(active)
+                {
+                    JOptionPane.showMessageDialog(getContentPane(), "Lecture déjà en cours!");
+                    return;
+                }
                 worker = new SwingWorker<>() {
                     @Override
                     protected Void doInBackground() {
+                        active = true;
+
                         for (int i = indexGraphMax; indexGraphMax < nombreLigneJson; i++) {
                             int nbrCheckBoxSelected = 0;
 
@@ -280,34 +287,38 @@ public class MyJFrame extends javax.swing.JFrame {
                                 break;
                             }
 
-                            // Parcourez toutes les cases à cocher et mettez à jour le graphique en conséquence
-                            for (JCheckBox checkBox : checkBoxes) {
-                                if (checkBox.isSelected()) {
-                                    String key = checkBox.getText(); // Utilise le texte de la case comme clé pour accéder au champ de la HashMap
-
-                                    ds.removeValue(key, convertTimestamp(timestamp[indexGraphMin]));
-                                    ds.addValue(dataVectors.get(key)[indexGraphMax], key, convertTimestamp(timestamp[indexGraphMax]));
-                                    nbrCheckBoxSelected++;
-                                }
-                            }
-                            if(nbrCheckBoxSelected == 0)
+                            if(timestamp[indexGraphMax-1] != timestamp[indexGraphMax])
                             {
-                                JOptionPane.showMessageDialog(getContentPane(), "Veuillez sélectionner au moins une case à cocher!");
-                                break;
+                                // Parcourez toutes les cases à cocher et mettez à jour le graphique en conséquence
+                                for (JCheckBox checkBox : checkBoxes) {
+                                    if (checkBox.isSelected()) {
+                                        String key = checkBox.getText(); // Utilise le texte de la case comme clé pour accéder au champ de la HashMap
+
+                                        ds.removeValue(key, convertTimestamp(timestamp[indexGraphMin]));
+                                        ds.addValue(dataVectors.get(key)[indexGraphMax], key, convertTimestamp(timestamp[indexGraphMax]));
+                                        nbrCheckBoxSelected++;
+                                    }
+                                }
+                                if(nbrCheckBoxSelected == 0)
+                                {
+                                    JOptionPane.showMessageDialog(getContentPane(), "Veuillez sélectionner au moins une case à cocher!");
+                                    break;
+                                }
+
+                                try {
+                                    Thread.sleep(500);
+                                } catch (InterruptedException ex) {
+                                    throw new RuntimeException(ex);
+                                }
                             }
                             indexGraphMin++;
                             indexGraphMax++;
-
-                            try {
-                                Thread.sleep(500);
-                            } catch (InterruptedException ex) {
-                                throw new RuntimeException(ex);
-                            }
                         }
                         return null;
                     }
                     @Override
                     protected void done() {
+                        active = false;
                         chartPanel.repaint();
                     }
                 };
@@ -366,12 +377,12 @@ public class MyJFrame extends javax.swing.JFrame {
                 //Conversion en BASE64 pour envoie
                 String base64Image = convertImageToBase64(imagePath);
 
-                // Récupération de l'heure actuelle
-                LocalTime currentTime = LocalTime.now();
+                // Récupération de l'heure et la date actuelle
+                LocalDateTime now = LocalDateTime.now();
 
                 // Formatage de l'heure en chaîne de caractères
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-                String currentTimeString = currentTime.format(formatter);
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                String currentTimeString = now.format(formatter);
 
                 if(POSTImageJson(base64Image,(String) ChoixComboBox.getSelectedItem(), String.valueOf(timestamp[indexGraphMin]), currentTimeString , urlPost) != -1)
                 {
@@ -633,6 +644,4 @@ public class MyJFrame extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    // Variables declaration - do not modify//GEN-BEGIN:variables
-    // End of variables declaration//GEN-END:variables
 }
